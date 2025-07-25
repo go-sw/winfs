@@ -4,6 +4,7 @@ package ea
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -40,7 +41,7 @@ func convertToFullInfoBuf(arr []EaInfo) ([]byte, error) {
 		}
 
 		if len(eaName) > 0xff {
-			return nil, fmt.Errorf("EA name is too long")
+			return nil, errors.New("EA name is too long")
 		}
 
 		fullInfoLen := fullInfoHeaderSize + uint32(len(eaName)) + 1 + uint32(len(eaEnt.EaValue)) // add 1 for null terminator
@@ -54,7 +55,7 @@ func convertToFullInfoBuf(arr []EaInfo) ([]byte, error) {
 			// if the total size of EA info is larger than 64KB bytes, this EaSetEaFile fails with STATUS_EA_TOO_LARGE,
 			// if it goes a lot larger, it will write the data up to the limit without erroring(potential bug(?)),
 			// which results writing inconsistent data
-			return nil, fmt.Errorf("EA info data is larger than 64KB")
+			return nil, errors.New("EA info data is larger than 64KB")
 		}
 
 		fullEa := w32api.FILE_FULL_EA_INFORMATION{
@@ -83,7 +84,7 @@ func convertToFullInfoBuf(arr []EaInfo) ([]byte, error) {
 // Writing EA with no content will remove the EA with the according EaName if exists, do nothing if the file do not have EA with EaName.
 func EaWriteFile(dstPath string, followReparsePoint bool, eaInfo ...EaInfo) error {
 	if len(eaInfo) == 0 {
-		return fmt.Errorf("EA to write is empty")
+		return errors.New("EA to write is empty")
 	}
 
 	var err error
@@ -171,7 +172,7 @@ func WriteEaWithFile(dst string, followReparsePoint bool, src string, name strin
 		return err
 	}
 	if stat.Size() > 0xffff {
-		return fmt.Errorf("file size exceeds maximum size of EA buffer")
+		return errors.New("file size exceeds maximum size of EA buffer")
 	}
 
 	buf, err := os.ReadFile(src)
@@ -180,7 +181,7 @@ func WriteEaWithFile(dst string, followReparsePoint bool, src string, name strin
 	}
 
 	if fullInfoHeaderSize+len(name)+len(buf) > 0xffff {
-		return fmt.Errorf("the combined length of EA name and data should not exceed 65528(65536 - 8(header)) bytes")
+		return errors.New("the combined length of EA name and data should not exceed 65528(65536 - 8(header)) bytes")
 	}
 
 	eaInfo := EaInfo{
